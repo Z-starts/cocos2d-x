@@ -23,7 +23,7 @@ THE SOFTWARE.
 ****************************************************************************/
 
 #include "ui/UISlider.h"
-#include "extensions/GUI/CCControlExtension/CCScale9Sprite.h"
+#include "ui/UIScale9Sprite.h"
 #include "2d/CCSprite.h"
 
 NS_CC_BEGIN
@@ -66,6 +66,7 @@ _barRendererAdaptDirty(true),
 _progressBarRendererDirty(true),
 _eventCallback(nullptr)
 {
+    setTouchEnabled(true);
 }
 
 Slider::~Slider()
@@ -97,20 +98,30 @@ bool Slider::init()
 
 void Slider::initRenderer()
 {
-    _barRenderer = Sprite::create();
-    _progressBarRenderer = Sprite::create();
+    _barRenderer = Scale9Sprite::create();
+    _progressBarRenderer = Scale9Sprite::create();
+    _barRenderer->setScale9Enabled(false);
+    _progressBarRenderer->setScale9Enabled(false);
+    
     _progressBarRenderer->setAnchorPoint(Vec2(0.0f, 0.5f));
+    
     addProtectedChild(_barRenderer, BASEBAR_RENDERER_Z, -1);
     addProtectedChild(_progressBarRenderer, PROGRESSBAR_RENDERER_Z, -1);
+    
     _slidBallNormalRenderer = Sprite::create();
     _slidBallPressedRenderer = Sprite::create();
     _slidBallPressedRenderer->setVisible(false);
     _slidBallDisabledRenderer = Sprite::create();
     _slidBallDisabledRenderer->setVisible(false);
+    
     _slidBallRenderer = Node::create();
+    
     _slidBallRenderer->addChild(_slidBallNormalRenderer);
     _slidBallRenderer->addChild(_slidBallPressedRenderer);
     _slidBallRenderer->addChild(_slidBallDisabledRenderer);
+    _slidBallRenderer->setCascadeColorEnabled(true);
+    _slidBallRenderer->setCascadeOpacityEnabled(true);
+    
     addProtectedChild(_slidBallRenderer, SLIDBALL_RENDERER_Z, -1);
 }
 
@@ -125,29 +136,15 @@ void Slider::loadBarTexture(const std::string& fileName, TextureResType texType)
     switch (_barTexType)
     {
         case TextureResType::LOCAL:
-            if (_scale9Enabled)
-            {
-                static_cast<extension::Scale9Sprite*>(_barRenderer)->initWithFile(fileName);
-            }
-            else
-            {
-                static_cast<Sprite*>(_barRenderer)->setTexture(fileName);
-            }
+            _barRenderer->initWithFile(fileName);
             break;
         case TextureResType::PLIST:
-            if (_scale9Enabled)
-            {
-                static_cast<extension::Scale9Sprite*>(_barRenderer)->initWithSpriteFrameName(fileName);
-            }
-            else
-            {
-                static_cast<Sprite*>(_barRenderer)->setSpriteFrame(fileName);
-            }
+            _barRenderer->initWithSpriteFrameName(fileName);
             break;
         default:
             break;
     }
-    updateRGBAToRenderer(_barRenderer);
+    this->updateChildrenDisplayedRGBA();
     _barRendererAdaptDirty = true;
     _progressBarRendererDirty = true;
     updateContentSizeWithTextureSize(_barRenderer->getContentSize());
@@ -164,29 +161,15 @@ void Slider::loadProgressBarTexture(const std::string& fileName, TextureResType 
     switch (_progressBarTexType)
     {
         case TextureResType::LOCAL:
-            if (_scale9Enabled)
-            {
-                static_cast<extension::Scale9Sprite*>(_progressBarRenderer)->initWithFile(fileName);
-            }
-            else
-            {
-                static_cast<Sprite*>(_progressBarRenderer)->setTexture(fileName);
-            }
+            _progressBarRenderer->initWithFile(fileName);
             break;
         case TextureResType::PLIST:
-            if (_scale9Enabled)
-            {
-                static_cast<extension::Scale9Sprite*>(_progressBarRenderer)->initWithSpriteFrameName(fileName);
-            }
-            else
-            {
-                static_cast<Sprite*>(_progressBarRenderer)->setSpriteFrame(fileName);
-            }
+            _progressBarRenderer->initWithSpriteFrameName(fileName);
             break;
         default:
             break;
     }
-    updateRGBAToRenderer(_progressBarRenderer);
+    this->updateChildrenDisplayedRGBA();
     _progressBarRenderer->setAnchorPoint(Vec2(0.0f, 0.5f));
     _progressBarTextureSize = _progressBarRenderer->getContentSize();
     _progressBarRendererDirty = true;
@@ -200,24 +183,9 @@ void Slider::setScale9Enabled(bool able)
     }
     
     _scale9Enabled = able;
-    removeProtectedChild(_barRenderer);
-    removeProtectedChild(_progressBarRenderer);
-    _barRenderer = nullptr;
-    _progressBarRenderer = nullptr;
-    if (_scale9Enabled)
-    {
-        _barRenderer = extension::Scale9Sprite::create();
-        _progressBarRenderer = extension::Scale9Sprite::create();
-    }
-    else
-    {
-        _barRenderer = Sprite::create();
-        _progressBarRenderer = Sprite::create();
-    }
-    loadBarTexture(_textureFile, _barTexType);
-    loadProgressBarTexture(_progressBarTextureFile, _progressBarTexType);
-    addProtectedChild(_barRenderer, BASEBAR_RENDERER_Z, -1);
-    addProtectedChild(_progressBarRenderer, PROGRESSBAR_RENDERER_Z, -1);
+    _barRenderer->setScale9Enabled(_scale9Enabled);
+    _progressBarRenderer->setScale9Enabled(_scale9Enabled);
+    
     if (_scale9Enabled)
     {
         bool ignoreBefore = _ignoreSize;
@@ -259,7 +227,7 @@ void Slider::setCapInsetsBarRenderer(const Rect &capInsets)
     {
         return;
     }
-    static_cast<extension::Scale9Sprite*>(_barRenderer)->setCapInsets(capInsets);
+    _barRenderer->setCapInsets(capInsets);
 }
     
 const Rect& Slider::getCapInsetsBarRenderer()const
@@ -274,7 +242,7 @@ void Slider::setCapInsetProgressBarRebderer(const Rect &capInsets)
     {
         return;
     }
-    static_cast<extension::Scale9Sprite*>(_progressBarRenderer)->setCapInsets(capInsets);
+    _progressBarRenderer->setCapInsets(capInsets);
 }
     
 const Rect& Slider::getCapInsetsProgressBarRebderer()const
@@ -308,7 +276,7 @@ void Slider::loadSlidBallTextureNormal(const std::string& normal,TextureResType 
         default:
             break;
     }
-    updateRGBAToRenderer(_slidBallNormalRenderer);
+    this->updateChildrenDisplayedRGBA();
 }
 
 void Slider::loadSlidBallTexturePressed(const std::string& pressed,TextureResType texType)
@@ -330,7 +298,7 @@ void Slider::loadSlidBallTexturePressed(const std::string& pressed,TextureResTyp
         default:
             break;
     }
-    updateRGBAToRenderer(_slidBallPressedRenderer);
+    this->updateChildrenDisplayedRGBA();
 }
 
     void Slider::loadSlidBallTextureDisabled(const std::string& disabled,TextureResType texType)
@@ -352,7 +320,7 @@ void Slider::loadSlidBallTexturePressed(const std::string& pressed,TextureResTyp
         default:
             break;
     }
-    updateRGBAToRenderer(_slidBallDisabledRenderer);
+    this->updateChildrenDisplayedRGBA();
 }
 
 void Slider::setPercent(int percent)
@@ -371,14 +339,17 @@ void Slider::setPercent(int percent)
     _slidBallRenderer->setPosition(Vec2(dis, _contentSize.height / 2.0f));
     if (_scale9Enabled)
     {
-        static_cast<extension::Scale9Sprite*>(_progressBarRenderer)->setPreferredSize(Size(dis,_progressBarTextureSize.height));
+        _progressBarRenderer->setPreferredSize(Size(dis,_progressBarTextureSize.height));
     }
     else
     {
-        Sprite* spriteRenderer = static_cast<Sprite*>(_progressBarRenderer);
-        Rect rect = spriteRenderer->getTextureRect();
-        rect.size.width = _progressBarTextureSize.width * res;
-        spriteRenderer->setTextureRect(rect, spriteRenderer->isTextureRectRotated(), rect.size);
+        Sprite* spriteRenderer = _progressBarRenderer->getSprite();
+        
+        if (nullptr != spriteRenderer) {
+            Rect rect = spriteRenderer->getTextureRect();
+            rect.size.width = _progressBarTextureSize.width * res;
+            spriteRenderer->setTextureRect(rect, spriteRenderer->isTextureRectRotated(), rect.size);
+        }
     }
 }
     
@@ -398,7 +369,7 @@ bool Slider::onTouchBegan(Touch *touch, Event *unusedEvent)
     bool pass = Widget::onTouchBegan(touch, unusedEvent);
     if (_hitted)
     {
-        Vec2 nsp = convertToNodeSpace(_touchStartPos);
+        Vec2 nsp = convertToNodeSpace(_touchBeganPosition);
         setPercent(getPercentWithBallPos(nsp.x));
         percentChangedEvent();
     }
@@ -407,8 +378,8 @@ bool Slider::onTouchBegan(Touch *touch, Event *unusedEvent)
 
 void Slider::onTouchMoved(Touch *touch, Event *unusedEvent)
 {
-    _touchMovePos = touch->getLocation();
-    Vec2 nsp = convertToNodeSpace(_touchMovePos);
+    _touchMovePosition = touch->getLocation();
+    Vec2 nsp = convertToNodeSpace(_touchMovePosition);
     setPercent(getPercentWithBallPos(nsp.x));
     percentChangedEvent();
 }
@@ -441,6 +412,7 @@ void Slider::addEventListener(const ccSliderCallback& callback)
 
 void Slider::percentChangedEvent()
 {
+    this->retain();
     if (_sliderEventListener && _sliderEventSelector)
     {
         (_sliderEventListener->*_sliderEventSelector)(this,SLIDER_PERCENTCHANGED);
@@ -448,6 +420,7 @@ void Slider::percentChangedEvent()
     if (_eventCallback) {
         _eventCallback(this, EventType::ON_PERCENTAGE_CHANGED);
     }
+    this->release();
 }
 
 int Slider::getPercent()const
@@ -492,14 +465,14 @@ void Slider::barRendererScaleChangedWithSize()
     {
         
         _barRenderer->setScale(1.0f);
-        _barLength = _size.width;
+        _barLength = _contentSize.width;
     }
     else
     {
-        _barLength = _size.width;
+        _barLength = _contentSize.width;
         if (_scale9Enabled)
         {
-            static_cast<extension::Scale9Sprite*>(_barRenderer)->setPreferredSize(_size);
+            _barRenderer->setPreferredSize(_contentSize);
         }
         else
         {
@@ -509,8 +482,8 @@ void Slider::barRendererScaleChangedWithSize()
                 _barRenderer->setScale(1.0f);
                 return;
             }
-            float bscaleX = _size.width / btextureSize.width;
-            float bscaleY = _size.height / btextureSize.height;
+            float bscaleX = _contentSize.width / btextureSize.width;
+            float bscaleY = _contentSize.height / btextureSize.height;
             _barRenderer->setScaleX(bscaleX);
             _barRenderer->setScaleY(bscaleY);
         }
@@ -526,8 +499,8 @@ void Slider::progressBarRendererScaleChangedWithSize()
         if (!_scale9Enabled)
         {
             Size ptextureSize = _progressBarTextureSize;
-            float pscaleX = _size.width / ptextureSize.width;
-            float pscaleY = _size.height / ptextureSize.height;
+            float pscaleX = _contentSize.width / ptextureSize.width;
+            float pscaleY = _contentSize.height / ptextureSize.height;
             _progressBarRenderer->setScaleX(pscaleX);
             _progressBarRenderer->setScaleY(pscaleY);
         }
@@ -536,7 +509,7 @@ void Slider::progressBarRendererScaleChangedWithSize()
     {
         if (_scale9Enabled)
         {
-            static_cast<extension::Scale9Sprite*>(_progressBarRenderer)->setPreferredSize(_size);
+            _progressBarRenderer->setPreferredSize(_contentSize);
             _progressBarTextureSize = _progressBarRenderer->getContentSize();
         }
         else
@@ -547,8 +520,8 @@ void Slider::progressBarRendererScaleChangedWithSize()
                 _progressBarRenderer->setScale(1.0f);
                 return;
             }
-            float pscaleX = _size.width / ptextureSize.width;
-            float pscaleY = _size.height / ptextureSize.height;
+            float pscaleX = _contentSize.width / ptextureSize.width;
+            float pscaleY = _contentSize.height / ptextureSize.height;
             _progressBarRenderer->setScaleX(pscaleX);
             _progressBarRenderer->setScaleY(pscaleY);
         }
@@ -581,33 +554,6 @@ void Slider::onPressStateChangedToDisabled()
 std::string Slider::getDescription() const
 {
     return "Slider";
-}
-    
-void Slider::updateTextureColor()
-{
-    updateColorToRenderer(_barRenderer);
-    updateColorToRenderer(_progressBarRenderer);
-    updateColorToRenderer(_slidBallNormalRenderer);
-    updateColorToRenderer(_slidBallPressedRenderer);
-    updateColorToRenderer(_slidBallDisabledRenderer);
-}
-
-void Slider::updateTextureOpacity()
-{
-    updateOpacityToRenderer(_barRenderer);
-    updateOpacityToRenderer(_progressBarRenderer);
-    updateOpacityToRenderer(_slidBallNormalRenderer);
-    updateOpacityToRenderer(_slidBallPressedRenderer);
-    updateOpacityToRenderer(_slidBallDisabledRenderer);
-}
-
-void Slider::updateTextureRGBA()
-{
-    updateRGBAToRenderer(_barRenderer);
-    updateRGBAToRenderer(_progressBarRenderer);
-    updateRGBAToRenderer(_slidBallNormalRenderer);
-    updateRGBAToRenderer(_slidBallPressedRenderer);
-    updateRGBAToRenderer(_slidBallDisabledRenderer);
 }
 
 Widget* Slider::createCloneInstance()

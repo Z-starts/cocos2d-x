@@ -153,7 +153,7 @@ void ArmatureAnimation::setSpeedScale(float speedScale)
         bone->getTween()->setProcessScale(_processScale);
         if (bone->getChildArmature())
         {
-            bone->getChildArmature()->getAnimation()->setProcessScale(_processScale);
+            bone->getChildArmature()->getAnimation()->setSpeedScale(_processScale);
         }
     }
 }
@@ -228,7 +228,7 @@ void ArmatureAnimation::play(const std::string& animationName, int durationTo,  
 
             if (bone->getChildArmature())
             {
-                bone->getChildArmature()->getAnimation()->setProcessScale(_processScale);
+                bone->getChildArmature()->getAnimation()->setSpeedScale(_processScale);
             }
         }
         else
@@ -340,6 +340,12 @@ void ArmatureAnimation::update(float dt)
     for (const auto &tween : _tweenList)
     {
         tween->update(dt);
+    }
+
+    if(_frameEventQueue.size() > 0 || _movementEventQueue.size() > 0)
+    {
+        _armature->retain();
+        _armature->autorelease();
     }
 
     while (_frameEventQueue.size() > 0)

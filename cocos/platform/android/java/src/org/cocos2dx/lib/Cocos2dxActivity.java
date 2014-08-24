@@ -34,6 +34,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.util.Log;
 import android.widget.FrameLayout;
 import android.preference.PreferenceManager.OnActivityResultListener;
@@ -50,7 +51,7 @@ public abstract class Cocos2dxActivity extends Activity implements Cocos2dxHelpe
 	// ===========================================================
 	
 	private Cocos2dxGLSurfaceView mGLSurfaceView;
-	private Cocos2dxHandler mHandler;
+	private Cocos2dxHandler mHandler;	
 	private static Cocos2dxActivity sContext = null;
 	private Cocos2dxVideoHelper mVideoHelper = null;
 	
@@ -58,20 +59,23 @@ public abstract class Cocos2dxActivity extends Activity implements Cocos2dxHelpe
 		return sContext;
 	}
 	
+	public void setKeepScreenOn(boolean value) {
+		final boolean newValue = value;
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				mGLSurfaceView.setKeepScreenOn(newValue);
+			}
+		});
+	}
 	
 	protected void onLoadNativeLibraries() {
 		try {
 			ApplicationInfo ai = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
 			Bundle bundle = ai.metaData;
-			try {
-        		String libName = bundle.getString("android.app.lib_name");
-        		System.loadLibrary(libName);
-			} catch (Exception e) {
-		 		// ERROR
-				e.printStackTrace();
-			}
-		} catch (PackageManager.NameNotFoundException e) {
-		 	// ERROR
+			String libName = bundle.getString("android.app.lib_name");
+    		System.loadLibrary(libName);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -116,9 +120,14 @@ public abstract class Cocos2dxActivity extends Activity implements Cocos2dxHelpe
 	@Override
 	protected void onPause() {
 		super.onPause();
-
+		
 		Cocos2dxHelper.onPause();
 		this.mGLSurfaceView.onPause();
+	}
+	
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
 	}
 
 	@Override

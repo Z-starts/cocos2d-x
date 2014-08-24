@@ -142,6 +142,14 @@ bool ClippingNode::init(Node *stencil)
 
 void ClippingNode::onEnter()
 {
+#if CC_ENABLE_SCRIPT_BINDING
+    if (_scriptType == kScriptTypeJavascript)
+    {
+        if (ScriptEngineManager::sendNodeEventToJSExtended(this, kNodeOnEnter))
+            return;
+    }
+#endif
+    
     Node::onEnter();
     
     if (_stencil != nullptr)
@@ -253,6 +261,7 @@ void ClippingNode::visit(Renderer *renderer, const Mat4 &parentTransform, uint32
     renderer->addCommand(&_afterDrawStencilCmd);
 
     int i = 0;
+    bool visibleByCamera = isVisitableByVisitingCamera();
     
     if(!_children.empty())
     {
@@ -268,12 +277,13 @@ void ClippingNode::visit(Renderer *renderer, const Mat4 &parentTransform, uint32
                 break;
         }
         // self draw
-        this->draw(renderer, _modelViewTransform, flags);
+        if (visibleByCamera)
+            this->draw(renderer, _modelViewTransform, flags);
         
         for(auto it=_children.cbegin()+i; it != _children.cend(); ++it)
             (*it)->visit(renderer, _modelViewTransform, flags);
     }
-    else
+    else if (visibleByCamera)
     {
         this->draw(renderer, _modelViewTransform, flags);
     }

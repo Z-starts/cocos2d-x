@@ -25,11 +25,12 @@ UILoadingBar.cpp \
 UISlider.cpp \
 UITextField.cpp \
 UIRichText.cpp \
-CCProtectedNode.cpp \
 UIHBox.cpp \
 UIVBox.cpp \
 UIRelativeBox.cpp \
-UIVideoPlayerAndroid.cpp
+UIVideoPlayerAndroid.cpp \
+UIDeprecated.cpp \
+UIScale9Sprite.cpp \
 
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/.. \
 $(LOCAL_PATH)/../editor-support
@@ -40,11 +41,9 @@ $(LOCAL_PATH)/.. \
 $(LOCAL_PATH)/../.. \
 $(LOCAL_PATH)/../editor-support
 
-LOCAL_CFLAGS += -Wno-psabi
-LOCAL_EXPORT_CFLAGS += -Wno-psabi
 
-LOCAL_WHOLE_STATIC_LIBRARIES := cocos2dx_static
-LOCAL_WHOLE_STATIC_LIBRARIES += cocos_extension_static
+LOCAL_STATIC_LIBRARIES := cocos2dx_static
+LOCAL_STATIC_LIBRARIES += cocos_extension_static
 
 include $(BUILD_STATIC_LIBRARY)
 
