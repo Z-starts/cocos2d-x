@@ -28,10 +28,10 @@
 #include "3d/CCBundle3D.h"
 #include "3d/CCSprite3DMaterial.h"
 #include "3d/CCAttachNode.h"
-#include "3d/CCSkeleton3D.h"
+#include "3d/CCMesh.h"
 
 #include "base/CCDirector.h"
-#include "base/CCPlatformMacros.h"
+#include "platform/CCPlatformMacros.h"
 #include "base/ccMacros.h"
 #include "platform/CCFileUtils.h"
 #include "renderer/CCTextureCache.h"
@@ -50,9 +50,10 @@ Sprite3D* Sprite3D::create(const std::string &modelPath)
     if (modelPath.length() < 4)
         CCASSERT(false, "improper name specified when creating Sprite3D");
     
-    auto sprite = new Sprite3D();
+    auto sprite = new (std::nothrow) Sprite3D();
     if (sprite && sprite->initWithFile(modelPath))
     {
+        sprite->_contentSize = sprite->getBoundingBox().size;
         sprite->autorelease();
         return sprite;
     }
@@ -89,7 +90,9 @@ bool Sprite3D::loadFromCache(const std::string& path)
             }
         }
         
-        genGLProgramState();
+        for (ssize_t i = 0; i < _meshes.size(); i++) {
+            _meshes.at(i)->setGLProgramState(spritedata->glProgramStates.at(i));
+        }
         return true;
     }
     
@@ -102,16 +105,20 @@ bool Sprite3D::loadFromObj(const std::string& path)
     std::string fullPath = FileUtils::getInstance()->fullPathForFilename(path);
     
     MeshDatas meshdatas;
-    MaterialDatas* materialdatas = new MaterialDatas();
-    NodeDatas*   nodeDatas = new NodeDatas();
+    MaterialDatas* materialdatas = new (std::nothrow) MaterialDatas();
+    NodeDatas*   nodeDatas = new (std::nothrow) NodeDatas();
     bool ret = Bundle3D::loadObj(meshdatas, *materialdatas, *nodeDatas, fullPath);
     if (ret && initFrom(*nodeDatas, meshdatas, *materialdatas))
     {
         //add to cache
-        auto data = new Sprite3DCache::Sprite3DData();
+        auto data = new (std::nothrow) Sprite3DCache::Sprite3DData();
         data->materialdatas = materialdatas;
         data->nodedatas = nodeDatas;
         data->meshVertexDatas = _meshVertexDatas;
+        for (const auto mesh : _meshes) {
+            data->glProgramStates.pushBack(mesh->getGLProgramState());
+        }
+        
         Sprite3DCache::getInstance()->addSprite3DData(path, data);
         return true;
     }
@@ -130,18 +137,21 @@ bool Sprite3D::loadFromC3x(const std::string& path)
         return false;
     
     MeshDatas meshdatas;
-    MaterialDatas* materialdatas = new MaterialDatas();
-    NodeDatas*   nodeDatas = new NodeDatas();
+    MaterialDatas* materialdatas = new (std::nothrow) MaterialDatas();
+    NodeDatas*   nodeDatas = new (std::nothrow) NodeDatas();
     if (bundle->loadMeshDatas(meshdatas)
         && bundle->loadMaterials(*materialdatas)
         && bundle->loadNodes(*nodeDatas)
         && initFrom(*nodeDatas, meshdatas, *materialdatas))
     {
         //add to cache
-        auto data = new Sprite3DCache::Sprite3DData();
+        auto data = new (std::nothrow) Sprite3DCache::Sprite3DData();
         data->materialdatas = materialdatas;
         data->nodedatas = nodeDatas;
         data->meshVertexDatas = _meshVertexDatas;
+        for (const auto mesh : _meshes) {
+            data->glProgramStates.pushBack(mesh->getGLProgramState());
+        }
         Sprite3DCache::getInstance()->addSprite3DData(path, data);
         return true;
     }
@@ -228,9 +238,10 @@ bool Sprite3D::initFrom(const NodeDatas& nodeDatas, const MeshDatas& meshdatas, 
 }
 Sprite3D* Sprite3D::createSprite3DNode(NodeData* nodedata,ModelData* modeldata,const MaterialDatas& matrialdatas)
 {
-    auto sprite = new Sprite3D();
+    auto sprite = new (std::nothrow) Sprite3D();
     if (sprite)
     {
+        sprite->setName(nodedata->id);
         auto mesh = Mesh::create(nodedata->id, getMeshIndexData(modeldata->subMeshId));
         if (modeldata->matrialId == "" && matrialdatas.materials.size())
         {
@@ -255,6 +266,7 @@ Sprite3D* Sprite3D::createSprite3DNode(NodeData* nodedata,ModelData* modeldata,c
                         texParams.wrapT = textureData->wrapT;
                         tex->setTexParameters(texParams);
                         mesh->setTexture(tex);
+                        mesh->_isTransparent = (materialData->getTextureData(NTextureData::Usage::Transparency) != nullptr);
                     }
 
                 }
@@ -373,6 +385,7 @@ void Sprite3D::createNode(NodeData* nodedata, Node* root, const MaterialDatas& m
                                     texParams.wrapT = textureData->wrapT;
                                     tex->setTexParameters(texParams);
                                     mesh->setTexture(tex);
+                                    mesh->_isTransparent = (materialData->getTextureData(NTextureData::Usage::Transparency) != nullptr);
                                 }
 
                             }
@@ -399,6 +412,7 @@ void Sprite3D::createNode(NodeData* nodedata, Node* root, const MaterialDatas& m
         node= Node::create();
         if(node)
         {
+            node->setName(nodedata->id);
             node->setAdditionalTransform(&nodedata->transform);
             if(root)
             {
@@ -507,6 +521,7 @@ void Sprite3D::draw(Renderer *renderer, const Mat4 &transform, uint32_t flags)
         }
         //support tint and fade
         meshCommand.setDisplayColor(Vec4(color.r, color.g, color.b, color.a));
+        meshCommand.setTransparent(mesh->_isTransparent);
         renderer->addCommand(&meshCommand);
     }
 }
@@ -617,7 +632,7 @@ Sprite3DCache* Sprite3DCache::_cacheInstance = nullptr;
 Sprite3DCache* Sprite3DCache::getInstance()
 {
     if (_cacheInstance == nullptr)
-        _cacheInstance = new Sprite3DCache();
+        _cacheInstance = new (std::nothrow) Sprite3DCache();
     return _cacheInstance;
 }
 void Sprite3DCache::destroyInstance()
